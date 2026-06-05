@@ -1,0 +1,18 @@
+# Arduino build output
+build/
+*.elf
+*.hex
+*.bin
+*.map
+
+# Arduino IDE tijdelijke bestanden
+*.bak
+*.tmp
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
