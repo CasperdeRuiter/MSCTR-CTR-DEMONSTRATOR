@@ -16,3 +16,4 @@ desktop.ini
 # Editor
 .vscode/
 *.swp
+.claude/

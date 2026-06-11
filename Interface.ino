@@ -5,7 +5,7 @@
 
 // Menu-items (volgorde = index)
 const char* const MENU_ITEMS[] = {
-  "Kalibreren", "Start Demo", "Home", "Status", "Driver Scan"
+  "Kalibreren", "Start Demo", "Status", "Driver Scan"
 };
 #define MENU_COUNT (sizeof(MENU_ITEMS) / sizeof(MENU_ITEMS[0]))
 

@@ -151,7 +151,7 @@ void setup() {
   updateOLED();
 
   Serial.println(F("--- MSCTR gereed ---"));
-  Serial.println(F("Commando's: MENU CALIB HOME DEMO STOP SCAN STATUS"));
+  Serial.println(F("Commando's: MENU CALIB DEMO STOP SCAN STATUS"));
   Serial.println(F("            M<n> <mm|deg>   EN<n> / DIS<n>"));
 }
 

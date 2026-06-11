@@ -4,7 +4,6 @@
 //  Commando's (115200 baud, regel afsluiten met newline):
 //    MENU            terug naar hoofdmenu
 //    CALIB           start kalibratie (homing translatie-assen)
-//    HOME            translatie-assen terug naar nulpunt
 //    DEMO            start demo (vereist kalibratie)
 //    SCAN            opnieuw drivers detecteren
 //    STATUS          toon status van alle assen
@@ -53,7 +52,6 @@ void handleSerial() {
   // --- zonder argument ---
   if (up == "MENU")   { systemMode = MODE_MENU; menuIndex = 0; rgbIdle(); updateOLED(); return; }
   if (up == "CALIB")  { runCalibration(); updateOLED(); return; }
-  if (up == "HOME")   { runHome();        updateOLED(); return; }
   if (up == "DEMO")   { runDemo();        updateOLED(); return; }
   if (up == "SCAN")   { scanDrivers();    return; }
   if (up == "STATUS") { printStatus();    return; }

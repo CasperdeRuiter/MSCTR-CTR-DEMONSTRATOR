@@ -294,25 +294,6 @@ void runCalibration() {
   updateOLED();
 }
 
-void runHome() {
-  stopBuzzer();
-  Serial.println(F("[CMD] HOME"));
-  systemMode = MODE_CALIB; rgbWait(); updateOLED();
-  for (int t = 0; t < 3; t++) {
-    int i = TRA_ORDER[t];
-    if (motors[i].connected && motors[i].state == CAL_DONE) {
-      moveAxisFull(i, 0 - motors[i].position, HOME_SPEED_MMPS * FULLSTEPS_PER_MM,
-                   MS_HOME, CURRENT_TRA_MA, SPREAD_HOME);
-      if (g_stopReason == 1) break;
-      if (g_stopReason == 2) { triggerError(g_safetyMsg); waitButtonRelease(); return; }
-    }
-  }
-  systemMode = MODE_MENU; rgbIdle();
-  beep(784, 100);
-  waitButtonRelease();
-  updateOLED();
-}
-
 // Stop-check voor demo (blokkerend).
 // Pin 44 wordt gecontroleerd elke 1000 ms (zie demo-lus).
 // Extra beveiliging: pin moet >= 200 ms aaneengesloten LOW zijn.
@@ -581,9 +562,8 @@ void handleMenu() {
     switch (menuIndex) {
       case 0: runCalibration(); break;
       case 1: runDemo();        break;
-      case 2: runHome();        break;
-      case 3: printStatus();    break;
-      case 4: scanDrivers();    break;
+      case 2: printStatus();    break;
+      case 3: scanDrivers();    break;
     }
     updateOLED();
   }
