@@ -10,8 +10,8 @@ OLED, RGB rotary encoder, buzzer en eindschakelaars. Gebaseerd op het eindversla
 |------------------|--------|
 | `MSCTR_CODE.ino` | hoofdbestand: globale objecten, `setup()`, `loop()` |
 | `Config.h`       | **alle pinnen, motor-mapping en instelbare parameters** (pas hier aan) |
-| `Drivers.ino`    | TMC2209 detectie + configuratie (StealthChop, CoolStep, StallGuard) |
-| `Motion.ino`     | stapgeneratie, kalibratie/homing, home, demo, menu |
+| `Drivers.ino`    | TMC2209 detectie + configuratie (StealthChop, CoolStep; StallGuard alleen uitleesbaar) |
+| `Motion.ino`     | stapgeneratie, kalibratie/homing, demo, menu |
 | `Interface.ino`  | OLED, encoder, RGB-led, buzzer |
 | `Safety.ino`     | eindschakelaars, grensbewaking, noodstop/error, temperatuur |
 | `SerialCmd.ino`  | seriële commando's (debug / handmatig testen) |
@@ -30,17 +30,15 @@ worden bereikt en met de encoder bevestigd wordt.
 
 ## Bediening
 - **Encoder draaien** = door menu scrollen, **drukken** = kiezen.
-- Menu: `Kalibreren` · `Start Demo` · `Home` · `Status` · `Driver Scan`.
+- Menu: `Kalibreren` · `Start Demo` · `Status` · `Driver Scan`.
 - Tijdens kalibratie of demo: **drukken = afbreken/stoppen**.
 
 ## Seriële commando's (115200 baud)
 ```
-MENU  CALIB  HOME  DEMO  STOP  SCAN  STATUS
+MENU  CALIB  DEMO  STOP  SCAN  STATUS
 M<n> <waarde>   beweeg motor n   (mm voor translatie, ° voor rotatie)
                  bv. "M2 50"  = T1-Tra 50 mm vooruit
                      "M1 -90" = T1-Rot 90° terug
-SPD<n> <v>      snelheid (mm/s of °/s)
-SG<n> <v>       StallGuard-drempel (0..255)  -> tunen
 EN<n> / DIS<n>  motor in-/uitschakelen
 ```
 
@@ -81,10 +79,10 @@ is, dat de binnenste tube ertegenaan botst → noodstop. Schmitt-trigger = inver
 2. **Homing-richting — `HOME_DIR[]`.** Flip per as als die de verkeerde kant op homed.
 3. **Motorstroom — `CURRENT_ROT_MA` / `CURRENT_TRA_MA`.** Zet volgens datasheet
    (rotatie = DINGS 17HS2048, translatie = Nanotec LA561S20).
-4. **StallGuard — nu UIT (`USE_STALLGUARD 0`).** Homing draait voorlopig alleen op de
-   eindschakelaars. Voor tunen: lees `SG=` in STATUS terwijl je beweegt, stel `SGTHRS_*`
-   in (serieel `SG<n> <v>`), zet dan `USE_STALLGUARD 1` (en evt. `SAFETY_STALLGUARD 1`
-   voor noodstop buiten kalibratie). CoolStep blijft sowieso actief.
+4. **StallGuard — niet geïmplementeerd.** Homing draait volledig op de eindschakelaars.
+   StallGuard is hardwarematig voorbereid (DIAG-pinnen bedraad, `SG_RESULT()` uitleesbaar via
+   de driver-scan), maar wordt niet als homing- of noodstopcriterium gebruikt. Sensorloos
+   homen op StallGuard is een mogelijke vervolgstap. CoolStep blijft wel actief.
 5. **Snelheden / microstepping.** Demo-snelheden bewust gematigd voor 6 gelijktijdige
    assen op de Mega; los opvoeren voor CTQ-tests (20 mm/s translatie, 0,5° rotatie).
 6. **OLED.** Code gebruikt SSD1306 (zoals in TAR getest). Bij beeld-verschuiving/ruis
