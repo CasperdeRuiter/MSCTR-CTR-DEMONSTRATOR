@@ -439,8 +439,20 @@ void runDemo() {
   g_demoStartMs = millis();   // start opstart-grace (500 ms EMI-venster)
   Serial.println(F("[DEMO] gestart — druk encoder (>200 ms) of stuur STOP"));
 
-  // --- Snelheidsfactor per tube (T1=basis, T2=+10%, T3=+20%) ---
-  const float SPEED_FACTOR[3] = { 1.00f, 1.10f, 1.50f };
+  // --- Eigen beweging per tube ("Deep Tide / Mid Bridge / Tip Flicker") ---
+  //  Elke translatie-as krijgt een EIGEN slagband [lo..hi] (% van de slag) en een
+  //  eigen snelheid. Doordat de drie buizen verschillende amplitudes, gebieden en
+  //  ritmes hebben, bewegen ze zichtbaar onafhankelijk en bouwen ze samen één
+  //  continu veranderende 3D-vorm op — precies de kracht van het CTR-concept.
+  //    T1 (buitenste): volledige, langzame diepe slag    (0..85%, traag)
+  //    T2 (midden):    middenband, raakt nooit thuis/eind (30..75%, gemiddeld)
+  //    T3 (binnenste): korte, snelle tip-flikkering hoog  (60..93%, snel)
+  //  De korte band van T3 zorgt dat hij ~5x vaker heen-en-weer gaat dan T1, dus
+  //  hij oogt veel sneller zonder de lineaire actuator te overbelasten (stall).
+  const float TRA_LO_PCT[3]       = {  0.0f, 30.0f, 60.0f };  // ondergrens slagband
+  const float TRA_HI_PCT[3]       = { 85.0f, 75.0f, 93.0f };  // bovengrens slagband
+  const float TRA_SPEED_FACTOR[3] = { 0.80f, 1.30f, 1.60f };  // translatie-snelheid
+  const float ROT_SPEED_FACTOR[3] = { 0.80f, 1.30f, 2.20f };  // rotatie-snelheid
 
   // --- Basisintervallen ---
   float traIvBase = 1000000.0f / (DEMO_TRA_MMPS * FULLSTEPS_PER_MM * (float)MS_TRA);
@@ -449,22 +461,26 @@ void runDemo() {
   // --- Per-tube intervallen (sneller = korter interval = delen door factor) ---
   unsigned long traIv[3], rotIv[3];
   for (int t = 0; t < 3; t++) {
-    traIv[t] = (unsigned long)(traIvBase / SPEED_FACTOR[t]);
-    rotIv[t] = (unsigned long)(rotIvBase / SPEED_FACTOR[t]);
+    traIv[t] = (unsigned long)(traIvBase / TRA_SPEED_FACTOR[t]);
+    rotIv[t] = (unsigned long)(rotIvBase / ROT_SPEED_FACTOR[t]);
     if (traIv[t] < MIN_PULSE_US) traIv[t] = MIN_PULSE_US;
     if (rotIv[t] < MIN_PULSE_US) rotIv[t] = MIN_PULSE_US;
   }
 
-  // --- TRA toestand (µstap-positie per as) ---
-  long traPos[3], traMax[3];
+  // --- TRA toestand (µstap-positie + eigen slagband per as) ---
+  long traPos[3], traLo[3], traHi[3];
   bool traFwd[3];   // true = uitschuiven (weg van home)
+  bool traOn[3];    // as actief (verbonden + gekalibreerd)
 
   for (int t = 0; t < 3; t++) {
     int i = TRA_ORDER[t];
-    if (!motors[i].connected || motors[i].state != CAL_DONE) { traMax[t] = 0; continue; }
-    traMax[t] = (long)(DEMO_EXTEND_FRAC * (float)motors[i].max_position) * (long)MS_TRA;
-    traPos[t] = motors[i].position * (long)MS_TRA;  // begin vanuit huidige positie
-    traFwd[t] = (traPos[t] < traMax[t] / 2);        // ga naar het verste punt
+    if (!motors[i].connected || motors[i].state != CAL_DONE) { traOn[t] = false; continue; }
+    traOn[t] = true;
+    long stroke = (long)(DEMO_EXTEND_FRAC * (float)motors[i].max_position) * (long)MS_TRA;
+    traLo[t] = (long)(TRA_LO_PCT[t] / 100.0f * (float)stroke);
+    traHi[t] = (long)(TRA_HI_PCT[t] / 100.0f * (float)stroke);
+    traPos[t] = motors[i].position * (long)MS_TRA;   // begin vanuit huidige positie (0 na kalibratie)
+    traFwd[t] = (traPos[t] < traHi[t]);              // eerste beweging = uitschuiven
 
     applyDriver(i, MS_TRA, CURRENT_TRA_MA, SPREAD_TRA);
     digitalWrite(MOTOR_PINS[i][P_DIR], traFwd[t] ? DIR_FWD_LEVEL[i] : !DIR_FWD_LEVEL[i]);
@@ -492,13 +508,13 @@ void runDemo() {
     // --- TRA: heen-en-weer ---
     for (int t = 0; t < 3; t++) {
       int i = TRA_ORDER[t];
-      if (!motors[i].connected || traMax[t] == 0) continue;
+      if (!traOn[t]) continue;
       if (now - lastTra[t] < traIv[t]) continue;
       lastTra[t] = micros();
 
-      // Keer om bij eindschakelaars of positiegrens
-      bool hitFar  = traFwd[t]  && (farStopHit(i)  || traPos[t] >= traMax[t]);
-      bool hitHome = !traFwd[t] && (homeSwitchHit(i) || traPos[t] <= 0);
+      // Keer om bij eindschakelaars of de eigen slagband-grens
+      bool hitFar  = traFwd[t]  && (farStopHit(i)   || traPos[t] >= traHi[t]);
+      bool hitHome = !traFwd[t] && (homeSwitchHit(i) || traPos[t] <= traLo[t]);
       if (hitFar || hitHome) {
         traFwd[t] = !traFwd[t];
         digitalWrite(MOTOR_PINS[i][P_DIR], traFwd[t] ? DIR_FWD_LEVEL[i] : !DIR_FWD_LEVEL[i]);
@@ -535,7 +551,7 @@ void runDemo() {
   // Positie terugschrijven
   for (int t = 0; t < 3; t++) {
     int i = TRA_ORDER[t];
-    if (motors[i].connected) motors[i].position = traPos[t] / (long)MS_TRA;
+    if (traOn[t]) motors[i].position = traPos[t] / (long)MS_TRA;
   }
 
   systemMode = MODE_MENU; rgbIdle();
