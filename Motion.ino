@@ -287,9 +287,13 @@ void runCalibration() {
     return;
   }
 
-  systemMode = MODE_MENU; rgbIdle();
+  // Toon kort welke tubes nu gekalibreerd zijn (nog in MODE_CALIB -> vinkjes)
+  updateOLED();
   beep(1568, 150);
   Serial.println(F("[CALIB] klaar"));
+  delay(1300);
+
+  systemMode = MODE_MENU; rgbIdle();
   waitButtonRelease();
   updateOLED();
 }

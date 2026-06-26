@@ -215,16 +215,25 @@ void oledCenterText(const char* s, int y) {
   oled.print(s);
 }
 
+// Klein vinkje (~7x6) met linkerbovenhoek op (x,y).
+void oledCheck(int x, int y, uint16_t col) {
+  oled.drawLine(x,     y + 3, x + 2, y + 5, col);
+  oled.drawLine(x + 2, y + 5, x + 6, y,     col);
+}
+
+// Status-stip: gevuld = actief, open ring = inactief.
+void oledStatusDot(int x, int y, bool on, uint16_t col) {
+  if (on) oled.fillCircle(x, y, 2, col);
+  else    oled.drawCircle(x, y, 2, col);
+}
+
 // Geanimeerde opstart-splash: badge-logo + links-naar-rechts vullende balk.
 void bootSplash() {
   oled.clearDisplay();
   oled.setTextColor(SSD1306_WHITE);
   oled.drawRect(0, 0, 128, 64, SSD1306_WHITE);         // badge-kader
 
-  oled.drawCircle(64, 12, 7, SSD1306_WHITE);           // geneste ringen
-  oled.drawCircle(64, 12, 4, SSD1306_WHITE);
-  oled.fillCircle(64, 12, 1, SSD1306_WHITE);
-  oled.drawLine(64, 12, 72, 6, SSD1306_WHITE);         // gestuurde tip
+  oledHeroGlyph(64, 12);                               // geneste ringen + tip
 
   oled.setTextSize(2);
   oled.setCursor(34, 22);
@@ -266,13 +275,35 @@ void updateOLED() {
 
   switch (systemMode) {
 
-    case MODE_CALIB:
-      oledTitle("HOMING");
+    case MODE_CALIB: {
+      oledTitle("CALIBRATION");
       oled.setTextColor(SSD1306_WHITE);
-      oledHeroGlyph(64, 30);
-      oledCenterText("Homing all axes", 44);
-      oledCenterText("Please wait...", 54);
+      const int   cTra[3]  = { 1, 3, 5 };               // M2/M4/M6 = translatie
+      const char* cLbl[3]  = { "T1", "T2", "T3" };
+      const int   cRowY[3] = { 18, 30, 42 };
+      bool allDone = true;
+      for (int k = 0; k < 3; k++) {
+        int i = cTra[k];
+        bool conn = motors[i].connected;
+        bool done = conn && (motors[i].state == CAL_DONE);
+        if (!done) allDone = false;
+        oled.setTextColor(SSD1306_WHITE);
+        oled.setCursor(30, cRowY[k]);
+        oled.print(cLbl[k]);
+        if (!conn) {
+          oled.setCursor(60, cRowY[k]); oled.print(F("n/a"));
+        } else if (done) {
+          oledCheck(58, cRowY[k], SSD1306_WHITE);
+          oled.setCursor(72, cRowY[k]); oled.print(F("ready"));
+        } else {
+          oledStatusDot(60, cRowY[k] + 3, false, SSD1306_WHITE);
+          oled.setCursor(72, cRowY[k]); oled.print(F("homing"));
+        }
+      }
+      oled.setTextColor(SSD1306_WHITE);
+      oledCenterText(allDone ? "Calibration complete" : "Please wait...", 54);
       break;
+    }
 
     case MODE_MENU:
       oledTitle("MAIN MENU");
@@ -299,11 +330,19 @@ void updateOLED() {
       oledTitle("DEMO RUNNING");
       oledHeaderTag("RUN");
       oled.setTextColor(SSD1306_WHITE);
-      oledHeroGlyph(64, 27);
-      char ph[14];
-      snprintf(ph, sizeof(ph), "Phase %d", demoStep);
-      oledCenterText(ph, 42);
-      oled.fillRect(0, 54, 128, 10, SSD1306_WHITE);    // sterke stop-footer
+      const int dRot[3]  = { 0, 2, 4 };                 // M1/M3/M5 = rotatie
+      const int dTra[3]  = { 1, 3, 5 };                 // M2/M4/M6 = translatie
+      const char* dLbl[3] = { "T1", "T2", "T3" };
+      const int dRowY[3] = { 18, 30, 42 };
+      for (int k = 0; k < 3; k++) {
+        oled.setTextColor(SSD1306_WHITE);
+        oled.setCursor(6, dRowY[k]);  oled.print(dLbl[k]);
+        oled.setCursor(28, dRowY[k]); oled.print(F("Rot"));
+        oledStatusDot(54, dRowY[k] + 3, motors[dRot[k]].connected, SSD1306_WHITE);
+        oled.setCursor(72, dRowY[k]); oled.print(F("Tra"));
+        oledStatusDot(98, dRowY[k] + 3, motors[dTra[k]].connected, SSD1306_WHITE);
+      }
+      oled.fillRect(0, 54, 128, 10, SSD1306_WHITE);     // sterke stop-footer
       oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
       oledCenterText("PUSH = STOP", 55);
       oled.setTextColor(SSD1306_WHITE);
