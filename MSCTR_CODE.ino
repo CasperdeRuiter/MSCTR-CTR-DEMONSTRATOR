@@ -116,43 +116,30 @@ void setup() {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
-  if (!oledOK) {
-    Serial.println(F("[OLED] Niet gevonden (SDA=20 SCL=21)"));
-  } else {
-    oledTitle("MSCTR");
-    oled.setCursor(0, OLED_CONTENT_Y);
-    oled.println(F("Opstarten..."));
-    oled.display();
-    Serial.println(F("[OLED] OK"));
-  }
+  Serial.println(oledOK ? F("[OLED] OK") : F("[OLED] not found (SDA=20 SCL=21)"));
 
-  // --- Interface (encoder, RGB, buzzer, limit-pinnen) ---
+  // --- Interface (encoder, RGB, buzzer, limit pins) ---
   initInterface();
   rgbWait();
 
-  // --- Drivers detecteren + basisconfiguratie ---
+  // --- Animated boot splash (logo + progress bar) ---
+  bootSplash();
+
+  // --- Detect + configure drivers ---
   initDrivers();
 
-  // --- Motorstructuren initialiseren ---
+  // --- Init motor structures ---
   initMotors();
 
-  // --- Klaar ---
-  oled.clearDisplay();
-  oledTitle("MSCTR klaar");
-  oled.setCursor(0, OLED_CONTENT_Y);
-  oled.println(F("Hoofdmenu..."));
-  oled.display();
-  delay(500);
-
+  // --- Ready -> main menu ---
   systemMode = MODE_MENU;
   menuIndex  = 0;
   rgbIdle();
-  triggerBuzzer(BUZ_BOOT);
   updateOLED();
 
-  Serial.println(F("--- MSCTR gereed ---"));
-  Serial.println(F("Commando's: MENU CALIB DEMO STOP SCAN STATUS"));
-  Serial.println(F("            M<n> <mm|deg>   EN<n> / DIS<n>"));
+  Serial.println(F("--- MSCTR ready ---"));
+  Serial.println(F("Commands: MENU CALIB DEMO STOP SCAN STATUS"));
+  Serial.println(F("          M<n> <mm|deg>   EN<n> / DIS<n>"));
 }
 
 // ============================================================

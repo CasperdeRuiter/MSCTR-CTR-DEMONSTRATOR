@@ -27,8 +27,8 @@ void initDrivers() {
   int found = 0;
   for (int i = 0; i < NUM_MOTORS; i++) {
     oled.clearDisplay();
-    oledTitle("Driver init...");
-    oled.setCursor(0, OLED_CONTENT_Y);
+    oledTitle("DRIVER INIT");
+    oled.setCursor(3, 22);
     oled.print(MOTOR_NAMES[i]); oled.print(F(" ..."));
     oled.display();
 
@@ -56,13 +56,13 @@ void initDrivers() {
     } else {
       Serial.print(F("[INIT] M")); Serial.print(i + 1);
       Serial.print(F(" (")); Serial.print(MOTOR_NAMES[i]);
-      Serial.println(F("): NIET gevonden"));
+      Serial.println(F("): not found"));
     }
     delay(60);
   }
   Serial.print(F("[INIT] "));
   Serial.print(found); Serial.print('/'); Serial.print(NUM_MOTORS);
-  Serial.println(F(" drivers gevonden."));
+  Serial.println(F(" drivers found."));
 }
 
 // Herhaalbare scan (menu-item / serieel commando)
@@ -71,7 +71,7 @@ void scanDrivers() {
   oled.clearDisplay();
   oled.setTextSize(1);
   oled.setTextColor(SSD1306_WHITE);
-  oledTitle("-- DRIVER SCAN --");
+  oledTitle("DRIVER SCAN");
 
   int found = 0;
   for (int i = 0; i < NUM_MOTORS; i++) {
@@ -79,9 +79,10 @@ void scanDrivers() {
     motors[i].connected = ok;
     if (ok) { found++; configMotorTMC(i); }
 
-    oled.setCursor(0, OLED_CONTENT_Y + i * 8);
+    oled.setTextColor(SSD1306_WHITE);
+    oled.setCursor(3, 14 + i * 8);
     oled.print(MOTOR_NAMES[i]); oled.print(':');
-    oled.print(ok ? F("OK") : F("--"));
+    oled.print(ok ? F(" OK") : F(" --"));
     if (ok) { oled.print(F(" SG:")); oled.print(tmc[i].SG_RESULT()); }
     oled.display();
 
@@ -91,12 +92,12 @@ void scanDrivers() {
       Serial.print(F(" | I_rms:")); Serial.print(tmc[i].rms_current());
       Serial.println(F("mA"));
     } else {
-      Serial.println(F("niet gevonden"));
+      Serial.println(F("not found"));
     }
     delay(80);
   }
 
-  Serial.print(F("[SCAN] Resultaat: "));
+  Serial.print(F("[SCAN] Result: "));
   Serial.print(found); Serial.print('/'); Serial.print(NUM_MOTORS); Serial.println();
 
   delay(2000);

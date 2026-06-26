@@ -5,7 +5,7 @@
 
 // Menu-items (volgorde = index)
 const char* const MENU_ITEMS[] = {
-  "Kalibreren", "Start Demo", "Status", "Driver Scan"
+  "Calibrate", "Start Demo", "Status", "Driver Scan"
 };
 #define MENU_COUNT (sizeof(MENU_ITEMS) / sizeof(MENU_ITEMS[0]))
 
@@ -142,21 +142,104 @@ void waitButtonRelease() {
 // ============================================================
 //  OLED
 // ============================================================
+// Titelbalk: volledige witte balk met zwarte titel (identiteitselement).
 void oledTitle(const char* txt) {
-  oled.setCursor(0, OLED_TITLE_Y);
+  oled.fillRect(0, 0, 128, 11, SSD1306_WHITE);
   oled.setTextSize(1);
+  oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  oled.setCursor(3, 2);
   oled.print(txt);
+  oled.setTextColor(SSD1306_WHITE);          // klaar voor body-tekst
 }
 
-// Eenvoudig melding-scherm (titel + tot 3 regels)
+// Rechts-uitgelijnde context-tag op de titelbalk (bv "RUN", "STOP").
+void oledHeaderTag(const char* tag) {
+  int x = 125 - 6 * (int)strlen(tag);
+  oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+  oled.setCursor(x, 2);
+  oled.print(tag);
+  oled.setTextColor(SSD1306_WHITE);
+}
+
+// Merk-glyph: drie geneste ringen = de drie buizen T1>T2>T3.
+void oledBrandGlyph(int cx, int cy, uint16_t col) {
+  oled.drawCircle(cx, cy, 4, col);
+  oled.drawCircle(cx, cy, 2, col);
+  oled.drawPixel(cx, cy, col);
+}
+
+// Menu-pictogram (10x10) in rij-kleur 'col'. cy0 = bovenkant van de cel.
+void oledMenuIcon(uint8_t item, int cy0, uint16_t col) {
+  switch (item) {
+    case 0:                                    // Calibrate - datum/home
+      oled.drawCircle(8, cy0 + 4, 4, col);
+      oled.fillCircle(8, cy0 + 4, 1, col);
+      oled.drawLine(8, cy0 - 1, 8, cy0,      col);
+      oled.drawLine(8, cy0 + 8, 8, cy0 + 9,  col);
+      oled.drawLine(2, cy0 + 4, 3, cy0 + 4,  col);
+      oled.drawLine(13, cy0 + 4, 14, cy0 + 4, col);
+      break;
+    case 1:                                    // Start Demo - play
+      oled.fillTriangle(4, cy0 + 1, 4, cy0 + 9, 12, cy0 + 5, col);
+      break;
+    case 2: {                                  // Status - ECG
+      int cyM = cy0 + 5;
+      oled.drawLine(3, cyM, 5, cyM, col);
+      oled.drawLine(5, cyM, 7, cy0 + 1, col);
+      oled.drawLine(7, cy0 + 1, 9, cy0 + 9, col);
+      oled.drawLine(9, cy0 + 9, 10, cyM, col);
+      oled.drawLine(10, cyM, 12, cyM, col);
+      break;
+    }
+    case 3:                                    // Driver Scan - vergrootglas
+      oled.drawCircle(7, cy0 + 3, 3, col);
+      oled.drawLine(9, cy0 + 5, 12, cy0 + 9, col);
+      oled.drawPixel(7, cy0 + 3, col);
+      break;
+  }
+}
+
+// Geanimeerde opstart-splash: badge-logo + links-naar-rechts vullende balk.
+void bootSplash() {
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  oled.drawRect(0, 0, 128, 64, SSD1306_WHITE);         // badge-kader
+
+  oled.drawCircle(64, 12, 7, SSD1306_WHITE);           // geneste ringen
+  oled.drawCircle(64, 12, 4, SSD1306_WHITE);
+  oled.fillCircle(64, 12, 1, SSD1306_WHITE);
+  oled.drawLine(64, 12, 72, 6, SSD1306_WHITE);         // gestuurde tip
+
+  oled.setTextSize(2);
+  oled.setCursor(34, 22);
+  oled.print(F("MSCTR"));
+  oled.setTextSize(1);
+  oled.setCursor(1, 40);
+  oled.print(F("Concentric Tube Robot"));
+  oled.setCursor(1, 49);
+  oled.print(F("Benchmark  Saxion  UT"));
+
+  oled.drawRect(8, 57, 112, 6, SSD1306_WHITE);         // balk-omtrek
+  oled.display();
+
+  triggerBuzzer(BUZ_BOOT);
+  for (int w = 0; w <= 108; w += 6) {                  // ~1.3 s vullen
+    oled.fillRect(10, 59, w, 2, SSD1306_WHITE);
+    oled.display();
+    handleBuzzer();
+    delay(70);
+  }
+}
+
+// Eenvoudig melding-scherm (titelbalk + tot 3 regels body).
 void oledMessage(const char* title, const char* l1, const char* l2, const char* l3) {
   oled.clearDisplay();
   oled.setTextSize(1);
-  oled.setTextColor(SSD1306_WHITE);
   oledTitle(title);
-  if (l1) { oled.setCursor(0, OLED_CONTENT_Y);      oled.print(l1); }
-  if (l2) { oled.setCursor(0, OLED_CONTENT_Y + 12);  oled.print(l2); }
-  if (l3) { oled.setCursor(0, OLED_CONTENT_Y + 24);  oled.print(l3); }
+  oled.setTextColor(SSD1306_WHITE);
+  if (l1) { oled.setCursor(3, 18); oled.print(l1); }
+  if (l2) { oled.setCursor(3, 30); oled.print(l2); }
+  if (l3) { oled.setCursor(3, 42); oled.print(l3); }
   oled.display();
 }
 
@@ -167,46 +250,110 @@ void updateOLED() {
 
   switch (systemMode) {
 
-    case MODE_CALIB:
-      oledTitle("-- KALIBRATIE --");
-      for (int i = 0; i < NUM_MOTORS; i++) {
-        oled.setCursor(0, OLED_CONTENT_Y + i * 8);
-        oled.print(MOTOR_NAMES[i]); oled.print(':');
-        if (!motors[i].connected)        oled.print(F("N/A"));
+    case MODE_CALIB: {
+      oledTitle("HOMING");
+      oledHeaderTag("T1 T2 T3");
+      oled.setTextColor(SSD1306_WHITE);
+      oled.setCursor(3, 14);
+      oled.print(F("Homing all axes"));
+
+      const int   traIdx[3] = { 1, 3, 5 };     // M2/M4/M6 = translatie
+      const char* lbl[3]    = { "T1 Translate", "T2 Translate", "T3 Translate" };
+      const int   axisY[3]  = { 25, 35, 45 };
+      for (int k = 0; k < 3; k++) {
+        int i = traIdx[k];
+        oled.setTextColor(SSD1306_WHITE);
+        oled.setCursor(3, axisY[k]);
+        oled.print(lbl[k]);
+        const char* tok;
+        if (!motors[i].connected) tok = "N/A";
         else switch (motors[i].state) {
-          case CAL_IDLE:      oled.print(F("--"));    break;
-          case CAL_FIND_ZERO: oled.print(F("Nul.."));  break;
-          case CAL_FIND_MAX:  oled.print(F("Max.."));  break;
-          case CAL_DONE:      oled.print(F("OK"));     break;
-          case CAL_GO_HOME:   oled.print(F("Home"));   break;
+          case CAL_FIND_ZERO: tok = "zero"; break;
+          case CAL_FIND_MAX:  tok = "max";  break;
+          case CAL_GO_HOME:   tok = "home"; break;
+          case CAL_DONE:      tok = "OK";   break;
+          default:            tok = "--";   break;
         }
+        oled.drawRect(86, axisY[k] - 1, 40, 9, SSD1306_WHITE);
+        int tx = 124 - 6 * (int)strlen(tok);
+        oled.setCursor(tx, axisY[k]);
+        oled.print(tok);
       }
+      oled.drawLine(0, 54, 127, 54, SSD1306_WHITE);
+      oled.setCursor(3, 56);
+      oled.print(F("Please wait..."));
       break;
+    }
 
     case MODE_MENU:
-      oledTitle("------ MENU ------");
+      oledTitle("MAIN MENU");
+      oledBrandGlyph(118, 5, SSD1306_BLACK);
       for (uint8_t i = 0; i < MENU_COUNT; i++) {
-        oled.setCursor(0, OLED_CONTENT_Y + i * 9);
-        oled.print(i == menuIndex ? F(">") : F(" "));
+        int rowY = 14 + 12 * i;
+        uint16_t col;
+        if (i == menuIndex) {
+          oled.fillRect(0, rowY, 128, 12, SSD1306_WHITE);
+          oled.fillRect(125, rowY + 1, 2, 10, SSD1306_BLACK);
+          oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+          col = SSD1306_BLACK;
+        } else {
+          oled.setTextColor(SSD1306_WHITE);
+          col = SSD1306_WHITE;
+        }
+        oledMenuIcon(i, rowY + 1, col);
+        oled.setCursor(17, rowY + 2);
         oled.print(MENU_ITEMS[i]);
       }
       break;
 
     case MODE_DEMO:
-      oledTitle("------ DEMO ------");
-      oled.setCursor(0, OLED_CONTENT_Y);
-      oled.print(F("Fase: ")); oled.print(demoStep);
-      oled.setCursor(0, OLED_CONTENT_Y + 24);
-      oled.print(F("[druk = stop]"));
+      oledTitle("DEMO RUNNING");
+      oledHeaderTag("RUN");
+      oled.setTextColor(SSD1306_WHITE);
+      // Geneste-buis-graphic: T1>T2>T3 telescopisch uitschuivend
+      oled.drawLine(8, 18, 84, 18, SSD1306_WHITE);     // T1 buiten
+      oled.drawLine(8, 30, 84, 30, SSD1306_WHITE);
+      oled.drawLine(8, 18, 8, 30, SSD1306_WHITE);
+      oled.drawLine(84, 18, 84, 21, SSD1306_WHITE);
+      oled.drawLine(84, 27, 84, 30, SSD1306_WHITE);
+      oled.drawLine(20, 21, 72, 21, SSD1306_WHITE);    // T2 midden
+      oled.drawLine(20, 27, 72, 27, SSD1306_WHITE);
+      oled.drawLine(30, 23, 64, 23, SSD1306_WHITE);    // T3 binnen
+      oled.drawLine(30, 25, 64, 25, SSD1306_WHITE);
+      oled.fillCircle(66, 24, 2, SSD1306_WHITE);       // gestuurde tip
+      oled.drawLine(66, 24, 72, 20, SSD1306_WHITE);
+      oled.setCursor(92, 17); oled.print(F("T1"));
+      oled.setCursor(92, 26); oled.print(F("T2"));
+      oled.setCursor(92, 35); oled.print(F("T3"));
+      oled.setCursor(3, 43); oled.print(F("Phase ")); oled.print(demoStep);
+      oled.fillRect(0, 54, 128, 10, SSD1306_WHITE);    // sterke stop-footer
+      oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+      oled.setCursor(31, 55); oled.print(F("PUSH = STOP"));
+      oled.setTextColor(SSD1306_WHITE);
       break;
 
-    case MODE_ERROR:
-      oledTitle("!!!!! FOUT !!!!!");
-      oled.setCursor(0, OLED_CONTENT_Y);
-      oled.print(errorMsg);
-      oled.setCursor(0, OLED_CONTENT_Y + 28);
-      oled.print(F("Druk = bevestig"));
+    case MODE_ERROR: {
+      oledTitle("ERROR");
+      oledHeaderTag("STOP");
+      oled.setTextColor(SSD1306_WHITE);
+      oled.drawTriangle(16, 16, 6, 38, 26, 38, SSD1306_WHITE);  // gevarendriehoek
+      oled.fillRect(15, 23, 2, 8, SSD1306_WHITE);
+      oled.fillRect(15, 33, 2, 2, SSD1306_WHITE);
+      String m = errorMsg;                              // errorMsg over max 2 regels
+      if (m.length() <= 15) {
+        oled.setCursor(34, 24); oled.print(m);
+      } else {
+        int sp = m.lastIndexOf(' ', 15);
+        if (sp < 1) sp = 15;
+        oled.setCursor(34, 20); oled.print(m.substring(0, sp));
+        oled.setCursor(34, 30); oled.print(m.substring(m.charAt(sp) == ' ' ? sp + 1 : sp));
+      }
+      oled.fillRect(0, 54, 128, 10, SSD1306_WHITE);     // sterke confirm-footer
+      oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
+      oled.setCursor(22, 55); oled.print(F("PUSH = CONFIRM"));
+      oled.setTextColor(SSD1306_WHITE);
       break;
+    }
 
     default:
       oledTitle("MSCTR");

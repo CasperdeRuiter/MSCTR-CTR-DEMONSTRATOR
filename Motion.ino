@@ -76,7 +76,7 @@ int motionCheck() {
   if (serialStop()) return 1;
   for (int i = 0; i < NUM_MOTORS; i++) {
     if (FARSTOP_PIN[i] >= 0 && farStopHit(i)) {
-      g_safetyMsg = String(MOTOR_NAMES[i]) + F(" eindstop!");
+      g_safetyMsg = String(MOTOR_NAMES[i]) + F(" limit hit");
       return 2;
     }
   }
@@ -225,7 +225,7 @@ bool homeAllAxesSimultaneous() {
 
         // Time-out
         if (pulsesDone[t] > maxPulses) {
-          triggerError(String(MOTOR_NAMES[i]) + F(" homing time-out"));
+          triggerError(String(MOTOR_NAMES[i]) + F(" homing timeout"));
           return false;
         }
 
@@ -398,7 +398,7 @@ bool runPhaseSimultaneous(int* mIdx, int count, long* targetFS,
       if (serialStop()) { g_stopReason = 1; break; }
       for (int i = 0; i < NUM_MOTORS; i++) {
         if (FARSTOP_PIN[i] >= 0 && farStopHit(i)) {
-          g_safetyMsg = String(MOTOR_NAMES[i]) + F(" eindstop!");
+          g_safetyMsg = String(MOTOR_NAMES[i]) + F(" limit hit");
           g_stopReason = 2; break;
         }
       }
@@ -426,7 +426,7 @@ bool runPhaseSimultaneous(int* mIdx, int count, long* targetFS,
 void runDemo() {
   stopBuzzer();
   if (!allCalibrated()) {
-    oledMessage("!! LET OP !!", "Kalibratie", "nog niet voltooid", nullptr);
+    oledMessage("NOT READY", "Calibration", "required first", nullptr);
     beep(400, 250); delay(1100);
     systemMode = MODE_MENU; updateOLED();
     return;

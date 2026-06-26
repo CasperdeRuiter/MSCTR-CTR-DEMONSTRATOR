@@ -86,7 +86,7 @@ void monitorTemperature() {
   for (int i = 0; i < NUM_MOTORS; i++) {
     if (!motors[i].connected) continue;
     if (tmc[i].ot()) {
-      triggerError(String(F("M")) + String(i + 1) + F(" oververhit"));
+      triggerError(String(F("M")) + String(i + 1) + F(" overheated"));
       return;
     }
     if (tmc[i].otpw()) {
