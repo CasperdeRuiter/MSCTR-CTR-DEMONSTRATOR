@@ -125,8 +125,8 @@ const bool HOME_DIR[NUM_MOTORS] = {
 #define ENC_DT    45
 #define ENC_SW    44
 #define ENC_R     49     // RGB rotary encoder, common cathode (LOW = aan)
-#define ENC_G     50
-#define ENC_B     48
+#define ENC_G     48     // groen/blauw omgewisseld t.o.v. eerste mapping:
+#define ENC_B     50     //   pin 48 = groen, pin 50 = blauw (op hardware gemeten)
 #define BUZZER_PIN 47    // piezo via transistor Q1
 
 // OLED (I2C op Mega: SDA=20, SCL=21)
