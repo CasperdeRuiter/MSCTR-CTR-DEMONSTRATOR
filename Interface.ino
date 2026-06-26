@@ -199,6 +199,22 @@ void oledMenuIcon(uint8_t item, int cy0, uint16_t col) {
   }
 }
 
+// Groot merk-logo (drie geneste ringen + gestuurde tip), gecentreerd op (cx,cy).
+void oledHeroGlyph(int cx, int cy) {
+  oled.drawCircle(cx, cy, 7, SSD1306_WHITE);
+  oled.drawCircle(cx, cy, 4, SSD1306_WHITE);
+  oled.fillCircle(cx, cy, 1, SSD1306_WHITE);
+  oled.drawLine(cx, cy, cx + 8, cy - 6, SSD1306_WHITE);
+}
+
+// Gecentreerde size-1 tekst op rij y (gebruikt de huidige tekstkleur).
+void oledCenterText(const char* s, int y) {
+  int x = (128 - 6 * (int)strlen(s)) / 2;
+  if (x < 0) x = 0;
+  oled.setCursor(x, y);
+  oled.print(s);
+}
+
 // Geanimeerde opstart-splash: badge-logo + links-naar-rechts vullende balk.
 void bootSplash() {
   oled.clearDisplay();
@@ -250,46 +266,19 @@ void updateOLED() {
 
   switch (systemMode) {
 
-    case MODE_CALIB: {
+    case MODE_CALIB:
       oledTitle("HOMING");
-      oledHeaderTag("T1 T2 T3");
       oled.setTextColor(SSD1306_WHITE);
-      oled.setCursor(3, 14);
-      oled.print(F("Homing all axes"));
-
-      const int   traIdx[3] = { 1, 3, 5 };     // M2/M4/M6 = translatie
-      const char* lbl[3]    = { "T1 Translate", "T2 Translate", "T3 Translate" };
-      const int   axisY[3]  = { 25, 35, 45 };
-      for (int k = 0; k < 3; k++) {
-        int i = traIdx[k];
-        oled.setTextColor(SSD1306_WHITE);
-        oled.setCursor(3, axisY[k]);
-        oled.print(lbl[k]);
-        const char* tok;
-        if (!motors[i].connected) tok = "N/A";
-        else switch (motors[i].state) {
-          case CAL_FIND_ZERO: tok = "zero"; break;
-          case CAL_FIND_MAX:  tok = "max";  break;
-          case CAL_GO_HOME:   tok = "home"; break;
-          case CAL_DONE:      tok = "OK";   break;
-          default:            tok = "--";   break;
-        }
-        oled.drawRect(86, axisY[k] - 1, 40, 9, SSD1306_WHITE);
-        int tx = 124 - 6 * (int)strlen(tok);
-        oled.setCursor(tx, axisY[k]);
-        oled.print(tok);
-      }
-      oled.drawLine(0, 54, 127, 54, SSD1306_WHITE);
-      oled.setCursor(3, 56);
-      oled.print(F("Please wait..."));
+      oledHeroGlyph(64, 30);
+      oledCenterText("Homing all axes", 44);
+      oledCenterText("Please wait...", 54);
       break;
-    }
 
     case MODE_MENU:
       oledTitle("MAIN MENU");
       oledBrandGlyph(118, 5, SSD1306_BLACK);
       for (uint8_t i = 0; i < MENU_COUNT; i++) {
-        int rowY = 14 + 12 * i;
+        int rowY = 16 + 12 * i;          // start in blauwe zone (geel = y<16)
         uint16_t col;
         if (i == menuIndex) {
           oled.fillRect(0, rowY, 128, 12, SSD1306_WHITE);
@@ -306,31 +295,20 @@ void updateOLED() {
       }
       break;
 
-    case MODE_DEMO:
+    case MODE_DEMO: {
       oledTitle("DEMO RUNNING");
       oledHeaderTag("RUN");
       oled.setTextColor(SSD1306_WHITE);
-      // Geneste-buis-graphic: T1>T2>T3 telescopisch uitschuivend
-      oled.drawLine(8, 18, 84, 18, SSD1306_WHITE);     // T1 buiten
-      oled.drawLine(8, 30, 84, 30, SSD1306_WHITE);
-      oled.drawLine(8, 18, 8, 30, SSD1306_WHITE);
-      oled.drawLine(84, 18, 84, 21, SSD1306_WHITE);
-      oled.drawLine(84, 27, 84, 30, SSD1306_WHITE);
-      oled.drawLine(20, 21, 72, 21, SSD1306_WHITE);    // T2 midden
-      oled.drawLine(20, 27, 72, 27, SSD1306_WHITE);
-      oled.drawLine(30, 23, 64, 23, SSD1306_WHITE);    // T3 binnen
-      oled.drawLine(30, 25, 64, 25, SSD1306_WHITE);
-      oled.fillCircle(66, 24, 2, SSD1306_WHITE);       // gestuurde tip
-      oled.drawLine(66, 24, 72, 20, SSD1306_WHITE);
-      oled.setCursor(92, 17); oled.print(F("T1"));
-      oled.setCursor(92, 26); oled.print(F("T2"));
-      oled.setCursor(92, 35); oled.print(F("T3"));
-      oled.setCursor(3, 43); oled.print(F("Phase ")); oled.print(demoStep);
+      oledHeroGlyph(64, 27);
+      char ph[14];
+      snprintf(ph, sizeof(ph), "Phase %d", demoStep);
+      oledCenterText(ph, 42);
       oled.fillRect(0, 54, 128, 10, SSD1306_WHITE);    // sterke stop-footer
       oled.setTextColor(SSD1306_BLACK, SSD1306_WHITE);
-      oled.setCursor(31, 55); oled.print(F("PUSH = STOP"));
+      oledCenterText("PUSH = STOP", 55);
       oled.setTextColor(SSD1306_WHITE);
       break;
+    }
 
     case MODE_ERROR: {
       oledTitle("ERROR");

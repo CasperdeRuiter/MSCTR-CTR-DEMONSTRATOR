@@ -80,7 +80,7 @@ void scanDrivers() {
     if (ok) { found++; configMotorTMC(i); }
 
     oled.setTextColor(SSD1306_WHITE);
-    oled.setCursor(3, 14 + i * 8);
+    oled.setCursor(3, 16 + i * 8);
     oled.print(MOTOR_NAMES[i]); oled.print(':');
     oled.print(ok ? F(" OK") : F(" --"));
     if (ok) { oled.print(F(" SG:")); oled.print(tmc[i].SG_RESULT()); }
