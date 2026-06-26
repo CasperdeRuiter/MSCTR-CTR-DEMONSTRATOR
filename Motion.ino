@@ -454,6 +454,19 @@ void runDemo() {
   const float TRA_SPEED_FACTOR[3] = { 0.80f, 1.30f, 1.60f };  // translatie-snelheid
   const float ROT_SPEED_FACTOR[3] = { 0.80f, 1.30f, 2.20f };  // rotatie-snelheid
 
+  // --- Front-/botsschakelaar per buis (gecheckt tijdens UITSCHUIVEN) ---
+  //  Elke buis kan bij het uitschuiven tegen de vorige (buitenliggende) buis
+  //  botsen. De schakelaar die dat afvangt:
+  //    T1 -> pin 39  (eigen eind-veiligheidsstop)
+  //    T2 -> pin 38  (zit op T1; T2 dreigt tegen T1 te botsen)
+  //    T3 -> pin 40  (zit op T2; T3 dreigt tegen T2 te botsen)
+  //  pin 38/40 zijn TEVENS de home-schakelaar van de vorige buis, dus die
+  //  tellen alleen als botsing wanneer die vorige buis niet zelf thuis staat.
+  const int  FRONT_SW[3]  = { FARSTOP_PIN[TRA_ORDER[0]],       // 39
+                              HOME_SWITCH_PIN[TRA_ORDER[0]],   // 38 (home van T1)
+                              HOME_SWITCH_PIN[TRA_ORDER[1]] }; // 40 (home van T2)
+  const long collisionTol = (long)(COLLISION_HOME_TOL_MM * FULLSTEPS_PER_MM) * (long)MS_TRA;
+
   // --- Basisintervallen ---
   float traIvBase = 1000000.0f / (DEMO_TRA_MMPS * FULLSTEPS_PER_MM * (float)MS_TRA);
   float rotIvBase = 1000000.0f / ((DEMO_ROT_RPM / 60.0f) * (float)FULLSTEPS_PER_REV * (float)MS_ROT);
@@ -512,14 +525,24 @@ void runDemo() {
       if (now - lastTra[t] < traIv[t]) continue;
       lastTra[t] = micros();
 
-      // Keer om bij eindschakelaars of de eigen slagband-grens
-      bool hitFar  = traFwd[t]  && (farStopHit(i)   || traPos[t] >= traHi[t]);
+      // --- Botsing-/eindschakelaar VOOR deze buis (alleen bij uitschuiven) ---
+      bool frontHit = false;
+      int fpin = FRONT_SW[t];
+      if (fpin >= 0 && switchPressed(fpin)) {
+        if (t == 0)          frontHit = true;                         // eigen eindstop T1
+        else if (traOn[t-1]) frontHit = (traPos[t-1] > collisionTol); // vorige buis niet thuis
+      }
+
+      // Keer om: bij uitschuiven op front-schakelaar/bovengrens,
+      //          bij intrekken op home-schakelaar/ondergrens.
+      bool hitFar  = traFwd[t]  && (frontHit         || traPos[t] >= traHi[t]);
       bool hitHome = !traFwd[t] && (homeSwitchHit(i) || traPos[t] <= traLo[t]);
       if (hitFar || hitHome) {
         traFwd[t] = !traFwd[t];
         digitalWrite(MOTOR_PINS[i][P_DIR], traFwd[t] ? DIR_FWD_LEVEL[i] : !DIR_FWD_LEVEL[i]);
         Serial.print(F("[DEMO] "));
         Serial.print(MOTOR_NAMES[i]);
+        if (frontHit) Serial.print(F(" [schakelaar voor]"));
         Serial.println(traFwd[t] ? F(" keert: uitschuiven") : F(" keert: terugtrekken"));
         continue;   // geen puls deze tick; eerst richting settelen
       }
